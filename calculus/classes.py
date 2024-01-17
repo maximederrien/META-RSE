@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
+import csv
 
 DELTA = timedelta(hours = 1) #dela of one hour
 
@@ -30,10 +31,17 @@ class Materiel :
         self.sous_id_materiel = sous_id_materiel
         self.crea_cost = 0
         self.end_cost = 0
+        self.cost_month = []
+        self.load_data()
+
+    def load_data(self):
+        file = open("data/" + str(self.id_materiel) + "_" + str(self.sous_id_materiel) + ".csv", newline='')
+        data_conso = csv.reader(file, delimiter=' ', quotechar='|')
+        for data in data_conso :
+            self.cost_month.append(int(data[0]))
         
     def get_cost(self, date) :
-        #not finished
-        return 1
+        return self.cost_month[date.month - 1]/30
 
 class Communication :
     def __init__(self, id_com, centre_1, centre_2, requettes) :
@@ -41,6 +49,20 @@ class Communication :
         self.centre_1 = centre_1
         self.centre_2 = centre_2
         self.requettes = requettes
+
+    def impact_bilan(self, date_debut,date_fin, impact_requette):
+        date_actu = date_debut
+        i = 0
+        while(date_actu < date_fin) :
+            date_actu += DELTA
+            #check if date_actu has already been created, which should be the case
+            try:
+                if (self.centre_1.bilan_graph["date"][i] != date_actu) :
+                    print("wrong date value")
+            except IndexError :
+                    print("ERROR IN DATE")
+            self.centre_1.bilan_graph["value"][i] += self.requettes * impact_requette #impact in hours
+            i += 1
 
 class Parametre :
     def __init__(self, date_debut, date_fin, bilan_print, bilan_fichier) :
@@ -50,17 +72,19 @@ class Parametre :
         self.bilan_fichier = bilan_fichier
 
 class Scenario :
-    def __init__(self, nom_scenario, parametre, kwTOco2):
+    def __init__(self, nom_scenario, parametre, kwTOco2, req_per_co2 = 1):
         self.nom = nom_scenario
         self.list_centre = []
         self.list_communication = []
         self.parametre = parametre
         self.kwTOco2 = kwTOco2
+        self.req_per_co2 = req_per_co2
 
     def actualize(self):
         for centre in self.list_centre :
             centre.create_bilan(self.parametre.date_debut,self.parametre.date_fin)
-        #TODO miss part for communication
+        for com in self.list_communication :
+            com.impact_bilan(self.parametre.date_debut, self.parametre.date_fin, self.req_per_co2)
 
 class Bilan :
     def __init__(self, chemin_fichier) :
